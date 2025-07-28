@@ -6,7 +6,9 @@
       "Bash(npx prisma:*)",
       "Bash(mkdir:*)",
       "Bash(npm run lint)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run:*)"
     ],
     "deny": []
   }
