@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { AmazonSPAPIService, AmazonProduct } from '@/services/amazon-sp-api'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 
 const productSchema = z.object({
   title: z.string().min(1, '商品标题不能为空'),
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         message: '数据验证失败',
-        errors: error.errors
+        errors: error.format()
       }, { status: 400 })
     }
     

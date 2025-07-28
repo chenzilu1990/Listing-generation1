@@ -1,7 +1,8 @@
-import SellingPartnerAPI from 'amazon-sp-api'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const SellingPartnerAPI = require('amazon-sp-api')
 import dotenv from 'dotenv'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 
 dotenv.config()
 
@@ -22,7 +23,8 @@ export interface AmazonProduct {
 }
 
 export class AmazonSPAPIService {
-  private client: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private client: any
   private isInitialized: boolean = false
   private userCredentials: {
     refresh_token?: string

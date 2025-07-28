@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import SellingPartnerAPI from 'amazon-sp-api'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const SellingPartnerAPI = require('amazon-sp-api')
 
 export async function POST(request: NextRequest) {
   try {

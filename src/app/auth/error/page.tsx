@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
 const errorMessages: Record<string, string> = {
   Configuration: '服务器配置错误，请联系管理员',
@@ -27,7 +28,7 @@ const errorMessages: Record<string, string> = {
   'server_error': '服务器错误：Amazon OAuth 服务暂时不可用'
 }
 
-export default function AuthErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   
@@ -112,5 +113,13 @@ export default function AuthErrorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-500">加载中...</div></div>}>
+      <ErrorContent />
+    </Suspense>
   )
 }

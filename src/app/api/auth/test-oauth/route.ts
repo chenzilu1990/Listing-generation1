@@ -22,9 +22,9 @@ export async function GET() {
     
     // 生成测试 OAuth URL
     const testUrl = buildAmazonOAuthUrl({
-      applicationId: debugInfo.applicationId,
-      clientId: debugInfo.clientId,
-      redirectUri: debugInfo.redirectUri,
+      applicationId: debugInfo.applicationId!,
+      clientId: debugInfo.clientId!,
+      redirectUri: debugInfo.redirectUri!,
       state: 'test-state',
       isDraft: debugInfo.isDraft
     })
