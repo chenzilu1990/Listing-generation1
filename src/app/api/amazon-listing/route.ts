@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { AmazonSPAPIService, AmazonProduct } from '@/services/amazon-sp-api'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../auth/[...nextauth]/route'
 
 const productSchema = z.object({
   title: z.string().min(1, '商品标题不能为空'),
@@ -73,7 +76,16 @@ export async function POST(request: NextRequest) {
     // 验证数据
     const validatedData = productSchema.parse(parsedData)
     
-    // 保存到数据库
+    // 获取当前用户会话
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({
+        success: false,
+        message: '请先登录'
+      }, { status: 401 })
+    }
+    
+    // 保存到本地数据库
     const product = await prisma.product.create({
       data: {
         title: validatedData.title,
@@ -102,13 +114,71 @@ export async function POST(request: NextRequest) {
         packageHeight: validatedData.packageDimensions.height ? parseFloat(validatedData.packageDimensions.height) : null,
         packageWeight: validatedData.packageDimensions.weight ? parseFloat(validatedData.packageDimensions.weight) : null,
         packageUnit: validatedData.packageDimensions.unit || null,
+        
+        // 关联到当前用户
+        userId: session.user.id as string
       }
     })
     
+    // 尝试刊登到亚马逊
+    let amazonListingResult = null
+    let amazonError = null
+    
+    try {
+      // 使用用户会话创建 SP-API 服务实例
+      const amazonSPAPI = await AmazonSPAPIService.fromSession()
+      
+      // 检查 API 凭证是否配置
+      const isValidCredentials = await amazonSPAPI.validateCredentials()
+      
+      if (isValidCredentials) {
+        // 准备亚马逊商品数据
+        const amazonProduct: AmazonProduct = {
+          sku: validatedData.sku,
+          title: validatedData.title,
+          description: validatedData.description,
+          bulletPoints: validatedData.bulletPoints.filter(point => point !== ''),
+          brand: validatedData.brand,
+          price: validatedData.price,
+          currency: validatedData.currency,
+          quantity: validatedData.quantity,
+          images: [], // 图片上传需要单独处理
+          category: validatedData.category,
+          variationTheme: validatedData.variationTheme || undefined
+        }
+        
+        // 获取市场 ID（优先使用用户设置，回退到环境变量）
+        const marketplaceId = session.user.amazonMarketplaceId || process.env.AMAZON_MARKETPLACE_ID || 'ATVPDKIKX0DER'
+        
+        // 创建或更新刊登
+        amazonListingResult = await amazonSPAPI.createOrUpdateListing(
+          amazonProduct,
+          marketplaceId
+        )
+        
+        // 更新本地数据库状态
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { status: 'active' }
+        })
+      } else {
+        amazonError = '亚马逊 API 凭证未配置或无效'
+      }
+    } catch (error) {
+      console.error('亚马逊刊登失败:', error)
+      amazonError = error instanceof Error ? error.message : '亚马逊刊登失败'
+    }
+    
     return NextResponse.json({
       success: true,
-      message: '商品刊登成功！',
-      data: product
+      message: amazonListingResult 
+        ? '商品已成功刊登到亚马逊！' 
+        : '商品已保存到本地数据库' + (amazonError ? `，但亚马逊刊登失败: ${amazonError}` : ''),
+      data: {
+        ...product,
+        amazonListingResult,
+        amazonError
+      }
     })
     
   } catch (error) {

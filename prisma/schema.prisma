@@ -13,6 +13,62 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// NextAuth.js 用户和会话表
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  
+  // Amazon SP-API 相关信息
+  amazonSellerId     String?
+  amazonMarketplaceId String?
+  amazonRegion       String?
+  
+  accounts Account[]
+  sessions Session[]
+  products Product[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
 model Product {
   id               String   @id @default(cuid())
   title            String
@@ -42,6 +98,11 @@ model Product {
   packageWeight    Float?
   packageUnit      String?
   status           String   @default("pending")
+  
+  // 关联到用户
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

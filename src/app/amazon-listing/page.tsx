@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export default function AmazonListingPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
@@ -145,7 +148,38 @@ export default function AmazonListingPage() {
       <div className="max-w-4xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">亚马逊商品刊登</h1>
         
-        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6 space-y-6">
+        {status === 'loading' ? (
+          <div className="text-center py-8">
+            <div className="text-gray-500">加载中...</div>
+          </div>
+        ) : !session ? (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md mb-6">
+            <p className="text-sm">
+              ⚠️ 您需要先登录才能刊登商品。
+              <Link href="/auth/signin" className="underline hover:no-underline ml-1">
+                点击这里登录
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6">
+            <p className="text-sm">
+              💡 提示：商品将同时保存到本地数据库和刊登到亚马逊。
+              {session.refreshToken ? (
+                <span className="text-green-600"> ✅ 已通过 OAuth 授权</span>
+              ) : (
+                <>
+                  请确保已在 
+                  <Link href="/settings" className="underline hover:no-underline"> 设置页面 </Link> 
+                  配置好 API 凭证。
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
+        {session && (
+          <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6 space-y-6">
           {/* 基本信息 */}
           <div className="border-b pb-6">
             <h2 className="text-xl font-semibold mb-4">基本信息</h2>
@@ -548,6 +582,7 @@ export default function AmazonListingPage() {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )
