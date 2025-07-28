@@ -51,10 +51,10 @@ export class AmazonSPAPIService {
     try {
       // 优先使用用户凭证，然后使用环境变量
       const credentials = {
-        region: this.userCredentials?.region || process.env.AMAZON_REGION || 'na',
-        refresh_token: this.userCredentials?.refresh_token || process.env.AMAZON_LWA_REFRESH_TOKEN,
-        client_id: this.userCredentials?.client_id || process.env.AMAZON_LWA_CLIENT_ID,
-        client_secret: this.userCredentials?.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET,
+        region: this.userCredentials?.region || 'na',
+        refresh_token: this.userCredentials?.refresh_token,
+        client_id: this.userCredentials?.client_id || process.env.AMAZON_OAUTH_CLIENT_ID,
+        client_secret: this.userCredentials?.client_secret || process.env.AMAZON_OAUTH_CLIENT_SECRET,
         options: {
           auto_request_tokens: true,
           use_sandbox: false // 生产环境设为 false
@@ -87,7 +87,7 @@ export class AmazonSPAPIService {
           client_id: process.env.AMAZON_OAUTH_CLIENT_ID,
           client_secret: process.env.AMAZON_OAUTH_CLIENT_SECRET,
           seller_id: session.sellerId,
-          region: process.env.AMAZON_REGION || 'na'
+          region: 'na'
         })
       }
     } catch (error) {
@@ -150,7 +150,7 @@ export class AmazonSPAPIService {
   /**
    * 创建或更新商品刊登
    */
-  async createOrUpdateListing(product: AmazonProduct, marketplaceId: string) {
+  async createOrUpdateListing(product: AmazonProduct, marketplaceId: string, sellerId?: string) {
     if (!this.isInitialized) {
       throw new Error('Amazon SP-API 未初始化')
     }
@@ -201,7 +201,7 @@ export class AmazonSPAPIService {
         operation: 'putListingsItem',
         endpoint: 'listings',
         path: {
-          sellerId: process.env.AMAZON_SELLER_ID,
+          sellerId: sellerId || this.userCredentials?.seller_id,
           sku: product.sku
         },
         body: {
@@ -221,22 +221,21 @@ export class AmazonSPAPIService {
   /**
    * 上传商品图片
    */
-  async uploadProductImages(_sku: string, _images: File[], _marketplaceId: string) {
+  async uploadProductImages() {
     if (!this.isInitialized) {
       throw new Error('Amazon SP-API 未初始化')
     }
 
     // 注意：实际的图片上传需要先将图片上传到 S3 或其他云存储
     // 然后提供图片 URL 给亚马逊
-    // 这里是简化的示例
-    console.log('图片上传功能需要额外实现')
-    return []
+    // 这里是简化的示例，暂不实现
+    throw new Error('图片上传功能暂未实现')
   }
 
   /**
    * 获取商品刊登状态
    */
-  async getListingStatus(sku: string, marketplaceId: string) {
+  async getListingStatus(sku: string, marketplaceId: string, sellerId?: string) {
     if (!this.isInitialized) {
       throw new Error('Amazon SP-API 未初始化')
     }
@@ -246,7 +245,7 @@ export class AmazonSPAPIService {
         operation: 'getListingsItem',
         endpoint: 'listings',
         path: {
-          sellerId: process.env.AMAZON_SELLER_ID,
+          sellerId: sellerId || this.userCredentials?.seller_id,
           sku
         },
         query: {
@@ -264,7 +263,7 @@ export class AmazonSPAPIService {
   /**
    * 批量获取商品刊登
    */
-  async getListings(marketplaceId: string, nextToken?: string) {
+  async getListings(marketplaceId: string, nextToken?: string, sellerId?: string) {
     if (!this.isInitialized) {
       throw new Error('Amazon SP-API 未初始化')
     }
@@ -275,7 +274,7 @@ export class AmazonSPAPIService {
         endpoint: 'catalog',
         query: {
           marketplaceIds: [marketplaceId],
-          sellerId: process.env.AMAZON_SELLER_ID,
+          sellerId: sellerId || this.userCredentials?.seller_id,
           pageSize: 20,
           nextToken
         }
@@ -290,7 +289,7 @@ export class AmazonSPAPIService {
   /**
    * 删除商品刊登
    */
-  async deleteListing(sku: string, marketplaceId: string) {
+  async deleteListing(sku: string, marketplaceId: string, sellerId?: string) {
     if (!this.isInitialized) {
       throw new Error('Amazon SP-API 未初始化')
     }
@@ -300,7 +299,7 @@ export class AmazonSPAPIService {
         operation: 'deleteListingsItem',
         endpoint: 'listings',
         path: {
-          sellerId: process.env.AMAZON_SELLER_ID,
+          sellerId: sellerId || this.userCredentials?.seller_id,
           sku
         },
         query: {

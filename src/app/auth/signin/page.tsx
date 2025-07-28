@@ -1,17 +1,14 @@
 'use client'
 
 import { signIn, useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { buildAmazonOAuthUrl, getOAuthDebugInfo } from '@/lib/amazon-oauth'
 
 
 export default function SignInPage() {
   const { status } = useSession()
   const router = useRouter()
-  const [showDebug, setShowDebug] = useState(false)
-  const [oauthUrl, setOauthUrl] = useState('')
 
 
   useEffect(() => {
@@ -20,24 +17,6 @@ export default function SignInPage() {
     }
   }, [status, router])
 
-  useEffect(() => {
-    // 生成预览 OAuth URL 用于调试
-    try {
-      const debugInfo = getOAuthDebugInfo()
-      if (debugInfo.applicationId && debugInfo.clientId && debugInfo.nextAuthUrl) {
-        const previewUrl = buildAmazonOAuthUrl({
-          applicationId: debugInfo.applicationId,
-          clientId: debugInfo.clientId,
-          redirectUri: debugInfo.redirectUri,
-          state: 'preview-state',
-          isDraft: debugInfo.isDraft
-        })
-        setOauthUrl(previewUrl)
-      }
-    } catch (error) {
-      console.error('生成 OAuth URL 失败:', error)
-    }
-  }, [])
 
   const handleAmazonSignIn = async () => {
     await signIn('amazon', { 
@@ -96,23 +75,6 @@ export default function SignInPage() {
                 使用 Amazon 账户登录
               </button>
 
-              <div className="mt-6 text-center">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">或</span>
-                  </div>
-                </div>
-              </div>
-
-              <Link
-                href="/settings"
-                className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-              >
-                手动配置 API 凭证
-              </Link>
             </div>
 
             <div className="mt-8 border-t pt-6">
@@ -124,42 +86,6 @@ export default function SignInPage() {
                   <li>• 更安全的 OAuth 2.0 授权流程</li>
                   <li>• 支持 Token 自动刷新</li>
                 </ul>
-              </div>
-              
-              {/* 调试信息 */}
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  {showDebug ? '隐藏' : '显示'} 调试信息
-                </button>
-                
-                {showDebug && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded text-xs">
-                    <p className="font-medium mb-2">OAuth 配置:</p>
-                    <div className="space-y-1 text-gray-600">
-                      <p>Application ID: {getOAuthDebugInfo().applicationId || '未配置'}</p>
-                      <p>Client ID: {getOAuthDebugInfo().clientId || '未配置'}</p>
-                      <p>Is Draft: {getOAuthDebugInfo().isDraft ? 'Yes' : 'No'}</p>
-                      <p>Redirect URI: {getOAuthDebugInfo().redirectUri || '未配置'}</p>
-                    </div>
-                    
-                    {oauthUrl && (
-                      <div className="mt-3">
-                        <p className="font-medium mb-1">预览授权 URL:</p>
-                        <div className="bg-white p-2 rounded border text-xs break-all">
-                          <a href={oauthUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            {oauthUrl}
-                          </a>
-                        </div>
-                        <p className="text-gray-500 mt-1">
-                          ⚠️ 这是预览 URL，实际登录会使用不同的 state 参数
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>

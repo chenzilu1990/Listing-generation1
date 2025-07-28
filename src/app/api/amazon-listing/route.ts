@@ -147,13 +147,14 @@ export async function POST(request: NextRequest) {
           variationTheme: validatedData.variationTheme || undefined
         }
         
-        // 获取市场 ID（优先使用用户设置，回退到环境变量）
-        const marketplaceId = session.user.amazonMarketplaceId || process.env.AMAZON_MARKETPLACE_ID || 'ATVPDKIKX0DER'
+        // 获取市场 ID（优先使用用户设置，默认为美国市场）
+        const marketplaceId = session.user.amazonMarketplaceId || 'ATVPDKIKX0DER'
         
         // 创建或更新刊登
         amazonListingResult = await amazonSPAPI.createOrUpdateListing(
           amazonProduct,
-          marketplaceId
+          marketplaceId,
+          session.sellerId
         )
         
         // 更新本地数据库状态

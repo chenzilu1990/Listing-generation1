@@ -17,9 +17,7 @@ const amazonProvider = {
     url: 'https://sellercentral.amazon.com/apps/authorize/consent',
     params: {
       application_id: process.env.AMAZON_APPLICATION_ID,
-      response_type: 'code',
-      state: 'state',
-      version: process.env.AMAZON_APP_IS_DRAFT === 'true' ? 'beta' : undefined
+      ...(process.env.AMAZON_APP_IS_DRAFT === 'true' && { version: 'beta' })
     }
   },
   

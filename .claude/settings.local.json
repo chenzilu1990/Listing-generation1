@@ -8,7 +8,10 @@
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
       "Bash(pnpm install:*)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "Bash(find:*)",
+      "Bash(rm:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }
