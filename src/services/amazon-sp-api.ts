@@ -32,6 +32,8 @@ export class AmazonSPAPIService {
     client_secret?: string
     seller_id?: string
     region?: string
+    access_token?: string
+    access_token_expires?: number
   } | null = null
 
   constructor(userCredentials?: {
@@ -40,6 +42,8 @@ export class AmazonSPAPIService {
     client_secret?: string
     seller_id?: string
     region?: string
+    access_token?: string
+    access_token_expires?: number
   }) {
     if (userCredentials) {
       this.userCredentials = userCredentials
@@ -51,13 +55,13 @@ export class AmazonSPAPIService {
     try {
       // 优先使用用户凭证，然后使用环境变量
       const credentials = {
-        region: this.userCredentials?.region || 'na',
-        refresh_token: this.userCredentials?.refresh_token,
-        client_id: this.userCredentials?.client_id || process.env.AMAZON_OAUTH_CLIENT_ID,
-        client_secret: this.userCredentials?.client_secret || process.env.AMAZON_OAUTH_CLIENT_SECRET,
+        region: this.userCredentials?.region || process.env.AMAZON_REGION || 'na',
+        refresh_token: this.userCredentials?.refresh_token || process.env.AMAZON_LWA_REFRESH_TOKEN,
+        client_id: this.userCredentials?.client_id || process.env.AMAZON_LWA_CLIENT_ID,
+        client_secret: this.userCredentials?.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET,
         options: {
           auto_request_tokens: true,
-          use_sandbox: false // 生产环境设为 false
+          use_sandbox: process.env.AMAZON_USE_SANDBOX === 'true'
         }
       }
 
@@ -84,10 +88,12 @@ export class AmazonSPAPIService {
       if (session?.refreshToken) {
         return new AmazonSPAPIService({
           refresh_token: session.refreshToken,
-          client_id: process.env.AMAZON_OAUTH_CLIENT_ID,
-          client_secret: process.env.AMAZON_OAUTH_CLIENT_SECRET,
+          client_id: process.env.AMAZON_LWA_CLIENT_ID,
+          client_secret: process.env.AMAZON_LWA_CLIENT_SECRET,
           seller_id: session.sellerId,
-          region: 'na'
+          region: process.env.AMAZON_REGION || 'na',
+          access_token: session.accessToken,
+          access_token_expires: session.user?.accessTokenExpires
         })
       }
     } catch (error) {
@@ -334,6 +340,65 @@ export class AmazonSPAPIService {
       console.error('获取商品类别失败:', error)
       throw error
     }
+  }
+  
+  /**
+   * 刷新访问令牌
+   */
+  async refreshAccessToken(): Promise<string | null> {
+    if (!this.userCredentials?.refresh_token) {
+      console.error('No refresh token available')
+      return null
+    }
+    
+    try {
+      const response = await fetch('https://api.amazon.com/auth/o2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: this.userCredentials.refresh_token,
+          client_id: this.userCredentials.client_id || process.env.AMAZON_LWA_CLIENT_ID || '',
+          client_secret: this.userCredentials.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET || ''
+        }).toString()
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error_description || 'Token refresh failed')
+      }
+      
+      const tokenData = await response.json()
+      
+      // 更新内存中的 token
+      this.userCredentials.access_token = tokenData.access_token
+      this.userCredentials.access_token_expires = Date.now() + (tokenData.expires_in * 1000)
+      
+      // 重新初始化客户端
+      this.initializeClient()
+      
+      return tokenData.access_token
+    } catch (error) {
+      console.error('Failed to refresh access token:', error)
+      return null
+    }
+  }
+  
+  /**
+   * 检查并刷新 token（如果需要）
+   */
+  private async ensureValidToken(): Promise<boolean> {
+    if (this.userCredentials?.access_token_expires) {
+      // 如果 token 将在 5 分钟内过期，刷新它
+      if (Date.now() > this.userCredentials.access_token_expires - (5 * 60 * 1000)) {
+        const newToken = await this.refreshAccessToken()
+        return !!newToken
+      }
+    }
+    return true
   }
 }
 

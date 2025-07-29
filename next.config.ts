@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  env: {
+    NEXT_PUBLIC_AMAZON_APPLICATION_ID: process.env.AMAZON_APPLICATION_ID,
+  },
 };
 
 export default nextConfig;

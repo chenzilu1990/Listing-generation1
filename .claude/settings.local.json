@@ -11,7 +11,8 @@
       "Bash(pnpm run:*)",
       "Bash(find:*)",
       "Bash(rm:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:developer-docs.amazon.com)"
     ],
     "deny": []
   }

@@ -1,6 +1,28 @@
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from '@/lib/prisma'
 import type { NextAuthOptions } from 'next-auth'
+import { randomBytes } from 'crypto'
+import jwt from 'jsonwebtoken'
+
+// 生成安全的 state token
+function generateStateToken(data: Record<string, unknown>): string {
+  const secret = process.env.JWT_STATE_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret'
+  return jwt.sign({
+    ...data,
+    nonce: randomBytes(16).toString('hex'),
+    exp: Math.floor(Date.now() / 1000) + (60 * 10) // 10分钟过期
+  }, secret)
+}
+
+// 验证 state token
+function verifyStateToken(token: string): Record<string, unknown> | null {
+  try {
+    const secret = process.env.JWT_STATE_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret'
+    return jwt.verify(token, secret) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
 
 // Amazon SP-API OAuth Provider 配置
 const amazonProvider = {
@@ -9,14 +31,15 @@ const amazonProvider = {
   type: 'oauth' as const,
   version: '2.0',
   
-  clientId: process.env.AMAZON_OAUTH_CLIENT_ID,
-  clientSecret: process.env.AMAZON_OAUTH_CLIENT_SECRET,
+  clientId: process.env.AMAZON_LWA_CLIENT_ID,
+  clientSecret: process.env.AMAZON_LWA_CLIENT_SECRET,
   
-  // SP-API 专用授权端点
+  // SP-API 专用授权端点 - 根据文档要求的格式
   authorization: {
     url: 'https://sellercentral.amazon.com/apps/authorize/consent',
     params: {
       application_id: process.env.AMAZON_APPLICATION_ID,
+      redirect_uri: process.env.AMAZON_REDIRECT_URI,
       ...(process.env.AMAZON_APP_IS_DRAFT === 'true' && { version: 'beta' })
     }
   },
@@ -25,7 +48,8 @@ const amazonProvider = {
   token: {
     url: 'https://api.amazon.com/auth/o2/token',
     params: {
-      grant_type: 'authorization_code'
+      grant_type: 'authorization_code',
+      redirect_uri: process.env.AMAZON_REDIRECT_URI
     }
   },
   
@@ -53,17 +77,25 @@ export const authOptions: NextAuthOptions = {
   providers: [amazonProvider as any], // eslint-disable-line @typescript-eslint/no-explicit-any
   
   session: {
-    strategy: 'jwt'
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30天
   },
   
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
       // 首次登录时保存 account 信息
-      if (account) {
+      if (account && user) {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
-        token.accessTokenExpires = account.expires_at
-        token.sellerId = account.providerAccountId
+        token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000
+        token.sellerId = account.providerAccountId || account.seller_id
+        token.userId = user.id
+      }
+      
+      // 检查 access token 是否过期，如果过期则刷新
+      if (token.accessTokenExpires && Date.now() > (token.accessTokenExpires as number)) {
+        // TODO: 实现 token 刷新逻辑
+        console.log('Access token expired, need to refresh')
       }
       
       return token
@@ -103,5 +135,24 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error'
   },
   
-  debug: process.env.NODE_ENV === 'development'
+  debug: process.env.NODE_ENV === 'development',
+  
+  events: {
+    async signIn({ user, account }) {
+      // 保存 Amazon 特定的信息到用户记录
+      if (account?.provider === 'amazon' && user?.id) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            amazonSellerId: account.providerAccountId || account.seller_id,
+            amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
+            amazonRegion: process.env.AMAZON_REGION
+          }
+        }).catch(console.error)
+      }
+    }
+  }
 }
+
+// 导出辅助函数
+export { generateStateToken, verifyStateToken }

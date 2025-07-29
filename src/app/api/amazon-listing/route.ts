@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         }
         
         // 获取市场 ID（优先使用用户设置，默认为美国市场）
-        const marketplaceId = session.user.amazonMarketplaceId || 'ATVPDKIKX0DER'
+        const marketplaceId = session.user.amazonMarketplaceId || process.env.AMAZON_MARKETPLACE_ID || 'ATVPDKIKX0DER'
         
         // 创建或更新刊登
         amazonListingResult = await amazonSPAPI.createOrUpdateListing(
