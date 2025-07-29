@@ -14,6 +14,7 @@ declare module "next-auth" {
       amazonSellerId?: string
       amazonMarketplaceId?: string
       amazonRegion?: string
+      accessTokenExpires?: number
     }
   }
 

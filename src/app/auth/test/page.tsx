@@ -25,9 +25,10 @@ export default function AuthTestPage() {
   
   const generateAuthUrl = () => {
     const baseUrl = 'https://sellercentral.amazon.com/apps/authorize/consent'
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
     const params = new URLSearchParams({
       application_id: process.env.NEXT_PUBLIC_AMAZON_APPLICATION_ID || 'YOUR_APP_ID',
-      redirect_uri: `${window.location.origin}/api/auth/amazon-callback`,
+      redirect_uri: `${origin}/api/auth/amazon-callback`,
       state: btoa(JSON.stringify({ sellerId, region, timestamp: Date.now() }))
     })
     
@@ -156,7 +157,7 @@ export default function AuthTestPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">AMAZON_REDIRECT_URI:</span>
                   <span className="text-gray-900 font-mono text-xs">
-                    {window.location.origin}/api/auth/amazon-callback
+                    {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'}/api/auth/amazon-callback
                   </span>
                 </div>
               </div>

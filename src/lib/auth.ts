@@ -144,7 +144,7 @@ export const authOptions: NextAuthOptions = {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            amazonSellerId: account.providerAccountId || account.seller_id,
+            // amazonSellerId: account.providerAccountId || account.seller_id,
             amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
             amazonRegion: process.env.AMAZON_REGION
           }
