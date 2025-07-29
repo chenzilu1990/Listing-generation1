@@ -12,11 +12,13 @@ export default function SignInPage() {
   const [useDirectAuth, setUseDirectAuth] = useState(false)
 
 
+
   useEffect(() => {
     if (status === 'authenticated') {
       router.push('/')
     }
   }, [status, router])
+
 
 
   const handleAmazonSignIn = async () => {
@@ -30,6 +32,7 @@ export default function SignInPage() {
         redirect: true
       })
     }
+
   }
 
   if (status === 'loading') {

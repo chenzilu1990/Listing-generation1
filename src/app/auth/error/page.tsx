@@ -29,6 +29,7 @@ const errorMessages: Record<string, string> = {
 }
 
 function ErrorContent() {
+
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   
@@ -89,6 +90,8 @@ function ErrorContent() {
                 重新登录
               </Link>
               
+
+
               
               <Link
                 href="/"
@@ -116,4 +119,5 @@ export default function AuthErrorPage() {
       <ErrorContent />
     </Suspense>
   )
+
 }
