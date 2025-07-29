@@ -109,20 +109,29 @@ export async function GET(request: NextRequest) {
       })
       
       // 查找或创建用户
+      const finalSellerId = sellingPartnerId || stateData.sellerId as string
+      
+      console.log('Creating/updating user with seller info:', {
+        email: profileData.email,
+        sellerId: finalSellerId,
+        sellingPartnerId,
+        stateDataSellerId: stateData.sellerId
+      })
+      
       const user = await prisma.user.upsert({
         where: {
           email: profileData.email
         },
         update: {
           name: profileData.name,
-          amazonSellerId: sellingPartnerId || stateData.sellerId as string,
+          amazonSellerId: finalSellerId,
           amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
           amazonRegion: process.env.AMAZON_REGION
         },
         create: {
           email: profileData.email,
           name: profileData.name,
-          amazonSellerId: sellingPartnerId || stateData.sellerId as string,
+          amazonSellerId: finalSellerId,
           amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
           amazonRegion: process.env.AMAZON_REGION
         }

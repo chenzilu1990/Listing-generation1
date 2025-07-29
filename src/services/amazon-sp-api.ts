@@ -53,23 +53,49 @@ export class AmazonSPAPIService {
 
   private initializeClient() {
     try {
+      // 根据区域选择正确的端点
+      const region = this.userCredentials?.region || process.env.AMAZON_REGION || 'na'
+      const endpoints = {
+        na: 'https://sellingpartnerapi-na.amazon.com',
+        eu: 'https://sellingpartnerapi-eu.amazon.com',
+        fe: 'https://sellingpartnerapi-fe.amazon.com'
+      }
+      
       // 优先使用用户凭证，然后使用环境变量
       const credentials = {
-        region: this.userCredentials?.region || process.env.AMAZON_REGION || 'na',
+        region,
         refresh_token: this.userCredentials?.refresh_token || process.env.AMAZON_LWA_REFRESH_TOKEN,
         client_id: this.userCredentials?.client_id || process.env.AMAZON_LWA_CLIENT_ID,
         client_secret: this.userCredentials?.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET,
         options: {
           auto_request_tokens: true,
-          use_sandbox: process.env.AMAZON_USE_SANDBOX === 'true'
+          use_sandbox: process.env.AMAZON_USE_SANDBOX === 'true',
+          sandbox_refresh_token: process.env.AMAZON_SANDBOX_REFRESH_TOKEN,
+        },
+        // 显式设置端点
+        endpoints_versions: {
+          endpoints: {
+            [region]: endpoints[region as keyof typeof endpoints] || endpoints.na
+          }
         }
       }
 
       // 验证必要的凭证
       if (!credentials.refresh_token || !credentials.client_id || !credentials.client_secret) {
-        console.warn('Amazon SP-API 凭证未配置完整')
+        console.warn('Amazon SP-API 凭证未配置完整:', {
+          has_refresh_token: !!credentials.refresh_token,
+          has_client_id: !!credentials.client_id,
+          has_client_secret: !!credentials.client_secret,
+          region: credentials.region
+        })
         return
       }
+
+      console.log('Initializing Amazon SP-API with:', {
+        region: credentials.region,
+        endpoint: endpoints[region as keyof typeof endpoints],
+        use_sandbox: credentials.options.use_sandbox
+      })
 
       this.client = new SellingPartnerAPI(credentials)
       this.isInitialized = true
@@ -109,14 +135,27 @@ export class AmazonSPAPIService {
    */
   async validateCredentials(): Promise<boolean> {
     if (!this.isInitialized) {
+      console.log('SP-API not initialized, cannot validate credentials')
       return false
     }
 
     try {
+      // 确保 token 有效
+      const tokenValid = await this.ensureValidToken()
+      if (!tokenValid) {
+        console.error('Failed to obtain valid access token')
+        return false
+      }
+
       // 尝试获取市场参与信息来验证凭证
-      await this.client.callAPI({
+      console.log('Validating credentials by fetching marketplace participations...')
+      const response = await this.client.callAPI({
         operation: 'getMarketplaceParticipations',
         endpoint: 'sellers'
+      })
+      
+      console.log('Credentials validated successfully', {
+        participations: response?.length || 0
       })
       return true
     } catch (error) {
@@ -202,12 +241,28 @@ export class AmazonSPAPIService {
         Object.assign(attributes, product.attributes)
       }
 
+      // 确保有 seller ID
+      const finalSellerId = sellerId || this.userCredentials?.seller_id
+      if (!finalSellerId) {
+        throw new Error('Seller ID is required for listing creation')
+      }
+
+      console.log('Creating/updating listing:', {
+        sellerId: finalSellerId,
+        sku: product.sku,
+        marketplaceId,
+        productType: product.productType || 'PRODUCT'
+      })
+
+      // 确保在调用前刷新 token（如果需要）
+      await this.ensureValidToken()
+
       // 使用 Listings API 创建或更新商品
       const response = await this.client.callAPI({
         operation: 'putListingsItem',
         endpoint: 'listings',
         path: {
-          sellerId: sellerId || this.userCredentials?.seller_id,
+          sellerId: finalSellerId,
           sku: product.sku
         },
         body: {
@@ -215,6 +270,11 @@ export class AmazonSPAPIService {
           requirements: 'LISTING',
           attributes
         }
+      })
+
+      console.log('Listing creation response:', {
+        status: response?.status,
+        sku: product.sku
       })
 
       return response
@@ -352,26 +412,52 @@ export class AmazonSPAPIService {
     }
     
     try {
-      const response = await fetch('https://api.amazon.com/auth/o2/token', {
+      const tokenEndpoint = process.env.AMAZON_LWA_ENDPOINT || 'https://api.amazon.com/auth/o2/token'
+      const params = {
+        grant_type: 'refresh_token',
+        refresh_token: this.userCredentials.refresh_token,
+        client_id: this.userCredentials.client_id || process.env.AMAZON_LWA_CLIENT_ID || '',
+        client_secret: this.userCredentials.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET || ''
+      }
+      
+      console.log('Refreshing access token...', {
+        endpoint: tokenEndpoint,
+        client_id: params.client_id ? 'present' : 'missing',
+        has_refresh_token: !!params.refresh_token
+      })
+      
+      const response = await fetch(tokenEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json'
         },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: this.userCredentials.refresh_token,
-          client_id: this.userCredentials.client_id || process.env.AMAZON_LWA_CLIENT_ID || '',
-          client_secret: this.userCredentials.client_secret || process.env.AMAZON_LWA_CLIENT_SECRET || ''
-        }).toString()
+        body: new URLSearchParams(params).toString()
       })
       
+      const responseText = await response.text()
+      
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error_description || 'Token refresh failed')
+        console.error('Token refresh failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          response: responseText
+        })
+        
+        try {
+          const errorData = JSON.parse(responseText)
+          throw new Error(errorData.error_description || errorData.error || 'Token refresh failed')
+        } catch {
+          throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`)
+        }
       }
       
-      const tokenData = await response.json()
+      const tokenData = JSON.parse(responseText)
+      
+      console.log('Access token refreshed successfully', {
+        expires_in: tokenData.expires_in,
+        token_type: tokenData.token_type
+      })
       
       // 更新内存中的 token
       this.userCredentials.access_token = tokenData.access_token

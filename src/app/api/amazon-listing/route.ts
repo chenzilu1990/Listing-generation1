@@ -125,13 +125,23 @@ export async function POST(request: NextRequest) {
     let amazonError = null
     
     try {
+      console.log('Attempting to list product to Amazon:', {
+        userId: session.user.id,
+        sellerId: session.sellerId,
+        amazonSellerId: session.user.amazonSellerId,
+        hasRefreshToken: !!session.refreshToken,
+        sku: validatedData.sku
+      })
+      
       // 使用用户会话创建 SP-API 服务实例
       const amazonSPAPI = await AmazonSPAPIService.fromSession()
       
       // 检查 API 凭证是否配置
+      console.log('Validating SP-API credentials...')
       const isValidCredentials = await amazonSPAPI.validateCredentials()
       
       if (isValidCredentials) {
+        console.log('SP-API credentials validated successfully')
         // 准备亚马逊商品数据
         const amazonProduct: AmazonProduct = {
           sku: validatedData.sku,
@@ -149,12 +159,20 @@ export async function POST(request: NextRequest) {
         
         // 获取市场 ID（优先使用用户设置，默认为美国市场）
         const marketplaceId = session.user.amazonMarketplaceId || process.env.AMAZON_MARKETPLACE_ID || 'ATVPDKIKX0DER'
+        const sellerId = session.sellerId || session.user.amazonSellerId
+        
+        console.log('Creating Amazon listing with:', {
+          marketplaceId,
+          sellerId,
+          productSku: amazonProduct.sku,
+          productTitle: amazonProduct.title
+        })
         
         // 创建或更新刊登
         amazonListingResult = await amazonSPAPI.createOrUpdateListing(
           amazonProduct,
           marketplaceId,
-          session.sellerId
+          sellerId
         )
         
         // 更新本地数据库状态
@@ -164,9 +182,14 @@ export async function POST(request: NextRequest) {
         })
       } else {
         amazonError = '亚马逊 API 凭证未配置或无效'
+        console.error('SP-API credentials validation failed')
       }
     } catch (error) {
-      console.error('亚马逊刊登失败:', error)
+      console.error('亚马逊刊登失败:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        sku: validatedData.sku
+      })
       amazonError = error instanceof Error ? error.message : '亚马逊刊登失败'
     }
     

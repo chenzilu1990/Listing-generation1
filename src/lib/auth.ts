@@ -88,14 +88,21 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000
-        token.sellerId = account.providerAccountId || account.seller_id
+        token.sellerId = account.providerAccountId || account.seller_id || account.selling_partner_id
         token.userId = user.id
+        
+        console.log('JWT callback - saving account info:', {
+          userId: user.id,
+          sellerId: token.sellerId,
+          hasAccessToken: !!token.accessToken,
+          hasRefreshToken: !!token.refreshToken
+        })
       }
       
       // 检查 access token 是否过期，如果过期则刷新
       if (token.accessTokenExpires && Date.now() > (token.accessTokenExpires as number)) {
-        // TODO: 实现 token 刷新逻辑
         console.log('Access token expired, need to refresh')
+        // TODO: 实现自动 token 刷新逻辑
       }
       
       return token
@@ -106,6 +113,28 @@ export const authOptions: NextAuthOptions = {
       session.accessToken = token.accessToken as string
       session.refreshToken = token.refreshToken as string
       session.sellerId = token.sellerId as string
+      
+      // 如果有用户 ID，从数据库获取最新的 Amazon 信息
+      if (token.userId) {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: token.userId as string },
+            select: {
+              amazonSellerId: true,
+              amazonMarketplaceId: true,
+              amazonRegion: true
+            }
+          })
+          
+          if (user) {
+            session.user.amazonSellerId = user.amazonSellerId || undefined
+            session.user.amazonMarketplaceId = user.amazonMarketplaceId || undefined
+            session.user.amazonRegion = user.amazonRegion || undefined
+          }
+        } catch (error) {
+          console.error('Failed to fetch user Amazon info:', error)
+        }
+      }
       
       return session
     },
@@ -154,14 +183,24 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       // 保存 Amazon 特定的信息到用户记录
       if (account?.provider === 'amazon' && user?.id) {
+        console.log('Saving Amazon seller info to user:', {
+          userId: user.id,
+          providerAccountId: account.providerAccountId,
+          sellerId: account.seller_id,
+          marketplaceId: process.env.AMAZON_MARKETPLACE_ID,
+          region: process.env.AMAZON_REGION
+        })
+        
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            // amazonSellerId: account.providerAccountId || account.seller_id,
+            amazonSellerId: account.providerAccountId || account.seller_id || account.selling_partner_id,
             amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
             amazonRegion: process.env.AMAZON_REGION
           }
-        }).catch(console.error)
+        }).catch((error) => {
+          console.error('Failed to update user with Amazon info:', error)
+        })
       }
     }
   }

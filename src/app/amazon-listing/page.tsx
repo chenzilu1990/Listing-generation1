@@ -162,20 +162,36 @@ export default function AmazonListingPage() {
             </p>
           </div>
         ) : (
-          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6">
-            <p className="text-sm">
-              💡 提示：商品将同时保存到本地数据库和刊登到亚马逊。
-              {session.refreshToken ? (
-                <span className="text-green-600"> ✅ 已通过 OAuth 授权</span>
-              ) : (
-                <>
-                  请确保已在 
-                  <Link href="/settings" className="underline hover:no-underline"> 设置页面 </Link> 
-                  配置好 API 凭证。
-                </>
-              )}
-            </p>
-          </div>
+          <>
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6">
+              <div className="flex justify-between items-center">
+                <p className="text-sm">
+                  💡 提示：商品将同时保存到本地数据库和刊登到亚马逊。
+                  {session.refreshToken ? (
+                    <span className="text-green-600"> ✅ 已通过 OAuth 授权</span>
+                  ) : (
+                    <>
+                      请确保已在 
+                      <Link href="/settings" className="underline hover:no-underline"> 设置页面 </Link> 
+                      配置好 API 凭证。
+                    </>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const response = await fetch('/api/auth/sp-api-status')
+                    const data = await response.json()
+                    console.log('SP-API Status:', data)
+                    alert(`SP-API 状态: ${data.status}\n${data.data?.recommendations?.join('\n') || '系统就绪'}`)
+                  }}
+                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                >
+                  检查 API 状态
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {session && (

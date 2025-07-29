@@ -125,6 +125,7 @@ AMAZON_REGION="na"  # North America
 ### Testing & Debugging
 - `GET /auth/test` - Authorization flow testing interface
 - `GET /api/auth/debug` - Debug endpoint for session and environment info
+- `GET /api/auth/sp-api-status` - Check SP-API credentials and connection status
 
 ## Database Architecture
 
