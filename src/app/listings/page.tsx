@@ -5,6 +5,13 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 
+interface ProductImage {
+  url?: string
+  name?: string
+  size?: number
+  type?: string
+}
+
 interface Product {
   id: string
   sku: string
@@ -15,7 +22,7 @@ interface Product {
   quantity: number
   category: string
   status: string
-  images: any[]
+  images: ProductImage[]
   createdAt: string
   updatedAt: string
 }

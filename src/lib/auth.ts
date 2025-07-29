@@ -88,7 +88,7 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000
-        token.sellerId = account.providerAccountId || account.seller_id || account.selling_partner_id
+        token.sellerId = (account.providerAccountId || account.seller_id || account.selling_partner_id) as string
         token.userId = user.id
         
         console.log('JWT callback - saving account info:', {
@@ -194,7 +194,7 @@ export const authOptions: NextAuthOptions = {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            amazonSellerId: account.providerAccountId || account.seller_id || account.selling_partner_id,
+            amazonSellerId: (account.providerAccountId || account.seller_id || account.selling_partner_id) as string,
             amazonMarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
             amazonRegion: process.env.AMAZON_REGION
           }

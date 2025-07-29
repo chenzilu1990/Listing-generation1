@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { AmazonSPAPIService } from '@/services/amazon-sp-api'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         hasClientSecret: !!process.env.AMAZON_LWA_CLIENT_SECRET,
         hasApplicationId: !!process.env.AMAZON_APPLICATION_ID
       },
-      recommendations: []
+      recommendations: [] as string[]
     }
     
     // 添加建议

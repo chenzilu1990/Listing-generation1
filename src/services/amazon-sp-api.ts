@@ -72,11 +72,9 @@ export class AmazonSPAPIService {
           use_sandbox: process.env.AMAZON_USE_SANDBOX === 'true',
           sandbox_refresh_token: process.env.AMAZON_SANDBOX_REFRESH_TOKEN,
         },
-        // 显式设置端点
-        endpoints_versions: {
-          endpoints: {
-            [region]: endpoints[region as keyof typeof endpoints] || endpoints.na
-          }
+        // 使用标准的 amazon-sp-api 配置
+        endpoints: {
+          [region]: endpoints[region as keyof typeof endpoints] || endpoints.na
         }
       }
 
