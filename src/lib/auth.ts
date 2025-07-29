@@ -127,6 +127,19 @@ export const authOptions: NextAuthOptions = {
         }
       }
       return true
+    },
+    
+    async redirect({ url, baseUrl }) {
+      // 如果是从授权成功回来，重定向到商品刊登页面
+      if (url.startsWith(baseUrl)) {
+        // 检查是否是授权回调
+        if (url.includes('/api/auth/callback/amazon')) {
+          return `${baseUrl}${process.env.DEFAULT_CALLBACK_URL || '/amazon-listing'}`
+        }
+        return url
+      }
+      // 默认重定向到商品刊登页面
+      return `${baseUrl}${process.env.DEFAULT_CALLBACK_URL || '/amazon-listing'}`
     }
   },
   

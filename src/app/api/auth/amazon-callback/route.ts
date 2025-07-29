@@ -13,6 +13,16 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')
     
+    // 调试日志
+    console.log('Amazon callback received:', {
+      state: state ? 'present' : 'missing',
+      code: code ? 'present' : 'missing',
+      sellingPartnerId: sellingPartnerId || 'not provided',
+      error: error || 'none',
+      errorDescription: errorDescription || 'none',
+      url: request.url
+    })
+    
     // 处理错误情况
     if (error) {
       console.error('Amazon authorization error:', error, errorDescription)
@@ -33,11 +43,18 @@ export async function GET(request: NextRequest) {
     // 验证 state token
     const stateData = verifyStateToken(state)
     if (!stateData) {
+      console.error('State token validation failed:', { state })
       return NextResponse.redirect(
         '/auth/error?error=invalid_state&description=Invalid or expired state parameter',
         { status: 302 }
       )
     }
+    
+    console.log('State token validated successfully:', {
+      sellerId: stateData.sellerId,
+      timestamp: stateData.timestamp,
+      originalRedirectUri: stateData.originalRedirectUri
+    })
     
     // 使用授权码交换 tokens
     try {
@@ -65,6 +82,12 @@ export async function GET(request: NextRequest) {
       const tokenData = await tokenResponse.json()
       const { access_token, refresh_token, expires_in } = tokenData
       
+      console.log('Token exchange successful:', {
+        access_token: access_token ? 'received' : 'missing',
+        refresh_token: refresh_token ? 'received' : 'missing',
+        expires_in: expires_in || 'not provided'
+      })
+      
       // 获取用户信息
       const profileResponse = await fetch('https://api.amazon.com/user/profile', {
         headers: {
@@ -78,6 +101,12 @@ export async function GET(request: NextRequest) {
       }
       
       const profileData = await profileResponse.json()
+      
+      console.log('User profile retrieved:', {
+        user_id: profileData.user_id || 'missing',
+        name: profileData.name || 'missing',
+        email: profileData.email || 'missing'
+      })
       
       // 查找或创建用户
       const user = await prisma.user.upsert({
@@ -140,8 +169,30 @@ export async function GET(request: NextRequest) {
         { expiresIn: '30d' }
       )
       
-      // 设置 cookie 并重定向到主页
-      const response = NextResponse.redirect('/', { status: 302 })
+      // 设置 cookie 并重定向到指定页面
+      // 优先使用 state 中的 originalRedirectUri，然后使用环境变量，最后使用默认值
+      let callbackUrl = process.env.DEFAULT_CALLBACK_URL || '/amazon-listing'
+      if (stateData.originalRedirectUri && typeof stateData.originalRedirectUri === 'string') {
+        try {
+          const url = new URL(stateData.originalRedirectUri)
+          callbackUrl = url.pathname + url.search
+        } catch {
+          // 如果不是有效 URL，则使用 pathname 部分
+          callbackUrl = stateData.originalRedirectUri as string
+        }
+      }
+      
+      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3001'
+      const finalRedirectUrl = `${baseUrl}${callbackUrl}`
+      
+      console.log('Redirecting user after successful authentication:', {
+        callbackUrl,
+        baseUrl,
+        finalRedirectUrl,
+        userId: user.id
+      })
+      
+      const response = NextResponse.redirect(finalRedirectUrl, { status: 302 })
       response.cookies.set('next-auth.session-token', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

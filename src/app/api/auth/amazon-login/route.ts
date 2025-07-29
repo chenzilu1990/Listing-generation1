@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const sellerId = searchParams.get('seller_id')
     const mwsAuthToken = searchParams.get('mws_auth_token') // 旧版参数，可能不存在
     const redirectUri = searchParams.get('redirect_uri')
+    const callbackUrl = searchParams.get('callbackUrl') // 用户指定的回调 URL
     
     // 验证必要参数
     if (!sellerId) {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     const stateData = {
       sellerId,
       mwsAuthToken,
-      originalRedirectUri: redirectUri,
+      originalRedirectUri: callbackUrl || redirectUri || process.env.DEFAULT_CALLBACK_URL || '/amazon-listing',
       timestamp: Date.now()
     }
     

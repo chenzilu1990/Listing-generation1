@@ -15,7 +15,7 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.push('/')
+      router.push('/amazon-listing')
     }
   }, [status, router])
 
@@ -28,7 +28,7 @@ export default function SignInPage() {
     } else {
       // 使用 NextAuth 流程
       await signIn('amazon', { 
-        callbackUrl: '/',
+        callbackUrl: '/amazon-listing',
         redirect: true
       })
     }
@@ -46,7 +46,7 @@ export default function SignInPage() {
   if (status === 'authenticated') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-green-600">已登录，正在跳转...</div>
+        <div className="text-green-600">已登录，正在跳转到商品刊登页面...</div>
       </div>
     )
   }
