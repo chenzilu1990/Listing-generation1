@@ -43,20 +43,30 @@ export async function GET(request: NextRequest) {
     }
     
     // 验证 state token
-    const stateData = verifyStateToken(state)
-    if (!stateData) {
-      console.error('State token validation failed:', { state })
-      return NextResponse.redirect(
-        '/auth/error?error=invalid_state&description=Invalid or expired state parameter',
-        { status: 302 }
-      )
-    }
+    let stateData = verifyStateToken(state)
     
-    console.log('State token validated successfully:', {
-      sellerId: stateData.sellerId,
-      timestamp: stateData.timestamp,
-      originalRedirectUri: stateData.originalRedirectUri
-    })
+    // 如果验证失败，可能是直接从 Amazon Seller Central 发起的授权
+    if (!stateData) {
+      console.log('State is not a JWT token, treating as direct authorization from Amazon:', {
+        state: state?.substring(0, 10) + '...',
+        sellingPartnerId
+      })
+      
+      // 创建基本的 stateData 对象以继续处理
+      stateData = {
+        sellerId: sellingPartnerId || '',
+        originalRedirectUri: process.env.DEFAULT_CALLBACK_URL || '/amazon-listing',
+        timestamp: Date.now(),
+        directAuth: true // 标记为直接授权
+      }
+    } else {
+      console.log('State token validated successfully:', {
+        sellerId: stateData.sellerId,
+        timestamp: stateData.timestamp,
+        originalRedirectUri: stateData.originalRedirectUri,
+        directAuth: false
+      })
+    }
     
     // 使用授权码交换 tokens
     try {
@@ -87,7 +97,8 @@ export async function GET(request: NextRequest) {
       console.log('Token exchange successful:', {
         access_token: access_token ? 'received' : 'missing',
         refresh_token: refresh_token ? 'received' : 'missing',
-        expires_in: expires_in || 'not provided'
+        expires_in: expires_in || 'not provided',
+        authSource: stateData.directAuth ? 'Amazon Seller Central' : 'Application'
       })
       
       // 获取用户信息
