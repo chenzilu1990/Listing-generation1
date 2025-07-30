@@ -12,7 +12,8 @@
       "Bash(find:*)",
       "Bash(rm:*)",
       "Bash(npx tsc:*)",
-      "WebFetch(domain:developer-docs.amazon.com)"
+      "WebFetch(domain:developer-docs.amazon.com)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

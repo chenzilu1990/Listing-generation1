@@ -86,3 +86,6 @@ export async function GET() {
     }, { status: 500 })
   }
 }
+
+
+https://sellercentral.amazon.com/apps/authorize/consent?client_id=amzn1.application-oa2-client.69ece15f456e4dfe8a62e7431a711c4b&scope=openid&response_type=code&redirect_uri=https%3A%2F%2Flisting-generation1.vercel.app%2Fapi%2Fauth%2Fcallback%2Famazon&application_id=amzn1.sp.solution.4a99cfd6-31a3-4369-b2f9-b3aeae2b4e8b&version=beta&state=XMauEJLkDBZb3Y3Smkmd0Qf8CmGMmo7A8GRISqiHo6A

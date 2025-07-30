@@ -25,10 +25,11 @@ export default function AuthTestPage() {
   
   const generateAuthUrl = () => {
     const baseUrl = 'https://sellercentral.amazon.com/apps/authorize/consent'
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
+    // 使用环境变量中配置的重定向 URI，而不是动态生成
+    const redirectUri = process.env.NEXT_PUBLIC_AMAZON_REDIRECT_URI || 'http://localhost:3001/api/auth/amazon-callback'
     const params = new URLSearchParams({
       application_id: process.env.NEXT_PUBLIC_AMAZON_APPLICATION_ID || 'YOUR_APP_ID',
-      redirect_uri: `${origin}/api/auth/amazon-callback`,
+      redirect_uri: redirectUri,
       state: btoa(JSON.stringify({ sellerId, region, timestamp: Date.now() }))
     })
     
@@ -157,7 +158,13 @@ export default function AuthTestPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">AMAZON_REDIRECT_URI:</span>
                   <span className="text-gray-900 font-mono text-xs">
-                    {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'}/api/auth/amazon-callback
+                    {process.env.NEXT_PUBLIC_AMAZON_REDIRECT_URI || 'http://localhost:3001/api/auth/amazon-callback'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">配置状态:</span>
+                  <span className={process.env.NEXT_PUBLIC_AMAZON_REDIRECT_URI ? 'text-green-600' : 'text-yellow-600'}>
+                    {process.env.NEXT_PUBLIC_AMAZON_REDIRECT_URI ? '已配置环境变量' : '使用默认值'}
                   </span>
                 </div>
               </div>

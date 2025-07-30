@@ -27,6 +27,16 @@ export async function GET() {
         DEFAULT_CALLBACK_URL: process.env.DEFAULT_CALLBACK_URL || 'not set',
         NODE_ENV: process.env.NODE_ENV
       },
+      redirectUriValidation: {
+        configured: !!process.env.AMAZON_REDIRECT_URI,
+        value: process.env.AMAZON_REDIRECT_URI || 'not configured',
+        expectedFormat: 'https://your-domain.com/api/auth/amazon-callback',
+        commonIssues: [
+          !process.env.AMAZON_REDIRECT_URI && 'AMAZON_REDIRECT_URI 环境变量未配置',
+          process.env.AMAZON_REDIRECT_URI && !process.env.AMAZON_REDIRECT_URI.includes('/api/auth/amazon-callback') && '重定向 URI 格式不正确，应包含 /api/auth/amazon-callback',
+          process.env.AMAZON_REDIRECT_URI && process.env.AMAZON_REDIRECT_URI.includes('localhost') && process.env.NODE_ENV === 'production' && '生产环境不应使用 localhost'
+        ].filter(Boolean)
+      },
       timestamp: new Date().toISOString()
     })
   } catch (error) {
