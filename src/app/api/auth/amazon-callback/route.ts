@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
     // 获取查询参数
     const searchParams = request.nextUrl.searchParams
     const state = searchParams.get('state')
-    const code = searchParams.get('code')
+    // Amazon SP-API 使用 'spapi_oauth_code' 而不是标准的 'code'
+    const code = searchParams.get('spapi_oauth_code') || searchParams.get('code')
     const sellingPartnerId = searchParams.get('selling_partner_id')
     const error = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     console.log('Amazon callback received:', {
       state: state ? 'present' : 'missing',
       code: code ? 'present' : 'missing',
+      spapi_oauth_code: searchParams.get('spapi_oauth_code') ? 'present' : 'missing',
       sellingPartnerId: sellingPartnerId || 'not provided',
       error: error || 'none',
       errorDescription: errorDescription || 'none',
